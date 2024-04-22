@@ -1,6 +1,6 @@
 resource "harness_platform_service" "this" {
-  identifier  = "payment_service"
-  name        = "payment-service"
+  identifier  = "GuestBook_UI"
+  name        = "GuestBook - UI"
   description = "connector provisioned by terraform"
   tags        = ["owner:cristian.ramirez@harness.io"]
   org_id      = harness_platform_organization.this.identifier
@@ -8,42 +8,69 @@ resource "harness_platform_service" "this" {
 
   yaml = <<-EOT
 service:
-  name: payment-service
-  identifier: payment_service
+  name: GuestBook - UI
+  identifier: GuestBook_UI
   orgIdentifier: ${harness_platform_organization.this.identifier}
   projectIdentifier: ${harness_platform_project.this.identifier}
-  gitOpsEnabled: false
   serviceDefinition:
-    type: Kubernetes
     spec:
-      manifests:
-        - manifest:
-            identifier: manifiesto
-            type: K8sManifest
-            spec:
-              store:
-                type: Github
-                spec:
-                  connectorRef: account.${harness_platform_connector_github.this.identifier}
-                  gitFetchType: Branch
-                  paths:
-                    - harness-deploy/payment-service-dev
-                  repoName: harness-cie-lab
-                  branch: main
-              valuesPaths: <+input>
-              skipResourceVersioning: false
-              enableDeclarativeRollback: false
+      variables:
+        - name: harness_service
+          type: String
+          description: ""
+          required: false
+          value: "<+service.identifier>"
+        - name: environment
+          type: String
+          description: ""
+          required: false
+          value: " <+env.name>"
+        - name: image_tag
+          type: String
+          description: ""
+          required: false
+          value: " <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>"
       artifacts:
         primary:
           primaryArtifactRef: <+input>
           sources:
             - spec:
-                connectorRef: account.${harness_platform_connector_docker.this.identifier}
-                imagePath: crizstian/payment-service-workshop
-                tag: <+input>
+                connectorRef: account.cristian_docker
+                imagePath: crizstian/guestbook
+                tag: latest
                 digest: ""
-              identifier: Docker
+              identifier: guestbook
               type: DockerRegistry
+      manifests:
+        - manifest:
+            identifier: config
+            type: ReleaseRepo
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: account.cristian_github
+                  gitFetchType: Branch
+                  paths:
+                    - cluster-config/<+cluster.name>/config.json
+                  branch: main
+                  repoName: guestbook-delivery
+        - manifest:
+            identifier: appset
+            type: DeploymentRepo
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: account.cristian_github
+                  gitFetchType: Branch
+                  paths:
+                    - appset/applicationset.yaml
+                  branch: main
+                  repoName: guestbook-delivery
+    type: Kubernetes
+  gitOpsEnabled: true
+
     EOT
 }
 

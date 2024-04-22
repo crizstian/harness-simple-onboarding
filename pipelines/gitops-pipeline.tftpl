@@ -1,0 +1,507 @@
+pipeline:
+  name: ${name}
+  identifier: ${identifier}
+  projectIdentifier: ${project_id}
+  orgIdentifier: ${org_id}
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        repoName: guestbook
+        build: <+input>
+  stages:
+    - stage:
+        name: Build - Test - Push
+        identifier: Build_Test_Push
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: $build_infrastructure}
+              namespace: default
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Create Tag
+                  identifier: Create_Tag
+                  spec:
+                    shell: Sh
+                    command: |-
+                      SHORT_TIME=`date +%m%S`
+                      TAG=$${SHORT_TIME}-<+codebase.commitSha.substring(0,7)>-<+pipeline.sequenceId>
+                    envVariables:
+                      COMMIT_SHA: <+codebase.commitSha>
+                      HARNESS_BUILD_ID: <+pipeline.sequenceId>
+                    outputVariables:
+                      - name: TAG
+              - stepGroup:
+                  name: Build and Push
+                  identifier: Build_and_Push
+                  steps:
+                    - step:
+                        type: BuildAndPushDockerRegistry
+                        name: BuildAndPushDockerHub
+                        identifier: BuildAndPushDockerRegistry
+                        spec:
+                          connectorRef: account.cristian_docker
+                          repo: crizstian/guestbook
+                          tags:
+                            - <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                            - latest
+                          labels:
+                            Harness_Execution: https://app.harness.io/ng/#/account/6_vVHzo9Qeu9fXvj-AcbCQ/cd/<+org.name>/default/projects/<+project.name>/pipelines/CD_Pipeline/executions/<+pipeline.executionId>/pipeline
+                    - parallel:
+                        - step:
+                            type: SscaOrchestration
+                            name: Generate SBOM Attestation
+                            identifier: Generate_SBOM_Attestation
+                            spec:
+                              mode: generation
+                              tool:
+                                type: Syft
+                                spec:
+                                  format: spdx-json
+                              source:
+                                type: image
+                                spec:
+                                  connector: account.cristian_docker
+                                  image: crizstian/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                              attestation:
+                                type: cosign
+                                spec:
+                                  privateKey: PlatformDemoCosignKey
+                                  password: PlatformDemoCosignPassword
+                              resources:
+                                limits:
+                                  memory: 500Mi
+                                  cpu: "0.5"
+                            when:
+                              stageStatus: Success
+                              condition: "false"
+                        - step:
+                            type: AquaTrivy
+                            name: Aqua Trivy
+                            identifier: Aqua_Trivy
+                            spec:
+                              mode: orchestration
+                              config: default
+                              target:
+                                name: crizstian/guestbook
+                                type: container
+                                variant: <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              image:
+                                type: docker_v2
+                                name: alpine
+                                tag: latest
+                        - step:
+                            type: Grype
+                            name: Grype
+                            identifier: Grype
+                            spec:
+                              mode: orchestration
+                              config: default
+                              target:
+                                name: crizstian/guestbook
+                                type: container
+                                variant: <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              image:
+                                type: docker_v2
+                                name: crizstian/guestbook
+                                tag: latest
+          caching:
+            enabled: false
+            paths: []
+          slsa_provenance:
+            enabled: true
+            attestation:
+              type: cosign
+              spec:
+                private_key: PlatformDemoCosignKey
+                password: PlatformDemoCosignPassword
+    - stage:
+        name: Deploy Dev
+        identifier: Deploy_Dev
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          gitOpsEnabled: true
+          execution:
+            steps:
+              - step:
+                  type: CdSscaEnforcement
+                  name: SoftwareSupplyChain Validation
+                  identifier: SoftwareSupplyChain_Validation
+                  spec:
+                    source:
+                      type: image
+                      spec:
+                        connector: account.cristian_docker
+                        image: crizstian/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                    verifyAttestation:
+                      type: cosign
+                      spec:
+                        publicKey: PlatformDemoCosignPub
+                    policy:
+                      store:
+                        type: Harness
+                        spec:
+                          file: /SSCA/ssca-sample-slim
+                    infrastructure:
+                      type: KubernetesDirect
+                      spec:
+                        connectorRef: gitopsmgmt
+                        namespace: default
+                        resources:
+                          limits:
+                            memory: 500Mi
+                            cpu: "0.5"
+              - step:
+                  type: GitOpsUpdateReleaseRepo
+                  name: Update Release Repo
+                  identifier: updateReleaseRepo
+                  timeout: 10m
+                  spec:
+                    variables: []
+                    prTitle: "Harness: Updating Image Tag for Clusters in <+env.name>"
+              - step:
+                  type: HarnessApproval
+                  name: Approval
+                  identifier: Approval
+                  spec:
+                    approvalMessage: Please review the following information and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    isAutoRejectEnabled: false
+                    approvers:
+                      userGroups:
+                        - account._account_all_users
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                    approverInputs: []
+                  timeout: 1d
+                  when:
+                    stageStatus: Success
+                    condition: <+pipeline.triggerType> != "SCHEDULER_CRON"
+              - step:
+                  type: MergePR
+                  name: Merge PR
+                  identifier: mergePR
+                  spec:
+                    deleteSourceBranch: true
+                    variables: []
+                  timeout: 10m
+              - step:
+                  type: GitOpsFetchLinkedApps
+                  name: Fetch Linked Apps
+                  identifier: fetchLinkedApps
+                  timeout: 10m
+                  spec: {}
+              - parallel:
+                  - step:
+                      type: GitOpsSync
+                      name: Sync App
+                      identifier: Sync_App
+                      spec:
+                        prune: true
+                        dryRun: false
+                        applyOnly: false
+                        forceApply: true
+                        applicationsList:
+                          - applicationName: dev-cluster-guestbook
+                            agentId: gitopsmgmt
+                        retryStrategy: {}
+                        retry: false
+                        syncOptions:
+                          skipSchemaValidation: false
+                          autoCreateNamespace: false
+                          pruneResourcesAtLast: false
+                          applyOutOfSyncOnly: false
+                          replaceResources: false
+                          prunePropagationPolicy: foreground
+                      timeout: 10m
+                  - step:
+                      type: Chaos
+                      name: Pod Delete
+                      identifier: Pod_Delete
+                      spec:
+                        experimentRef: 5f0f71ff-4998-4e6a-aa18-25d3c03c3c67
+                        expectedResilienceScore: 50
+            rollbackSteps: []
+          service:
+            serviceRef: $service_id}
+            serviceInputs:
+              serviceDefinition:
+                type: Kubernetes
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+          environment:
+            environmentRef: dev
+            deployToAll: false
+            gitOpsClusters:
+              - identifier: devcluster
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+    - stage:
+        name: Deploy QA
+        identifier: Deploy_QA
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          gitOpsEnabled: true
+          execution:
+            steps:
+              - step:
+                  type: GitOpsUpdateReleaseRepo
+                  name: Update Release Repo
+                  identifier: updateReleaseRepo
+                  timeout: 10m
+                  spec:
+                    variables: []
+                    prTitle: "Harness: Updating Image Tag for Clusters in <+env.name>"
+              - step:
+                  type: MergePR
+                  name: Merge PR
+                  identifier: mergePR
+                  spec:
+                    deleteSourceBranch: true
+                    variables: []
+                  timeout: 10m
+              - step:
+                  type: GitOpsFetchLinkedApps
+                  name: Fetch Linked Apps
+                  identifier: fetchLinkedApps
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  type: GitOpsSync
+                  name: Sync App
+                  identifier: Sync_App
+                  spec:
+                    prune: true
+                    dryRun: false
+                    applyOnly: false
+                    forceApply: true
+                    applicationsList:
+                      - applicationName: qa-cluster-guestbook
+                        agentId: gitopsmgmt
+                    retryStrategy: {}
+                    retry: false
+                    syncOptions:
+                      skipSchemaValidation: false
+                      autoCreateNamespace: false
+                      pruneResourcesAtLast: false
+                      applyOutOfSyncOnly: false
+                      replaceResources: false
+                      prunePropagationPolicy: foreground
+                  timeout: 10m
+              - stepGroup:
+                  name: Production Approval Request
+                  identifier: Production_Approval_Request
+                  steps:
+                    - step:
+                        type: ServiceNowCreate
+                        name: Create ServiceNow Ticket
+                        identifier: Create_ServiceNow_Ticket
+                        spec:
+                          useServiceNowTemplate: true
+                          connectorRef: account.ServiceNow
+                          ticketType: change_request
+                          fields: []
+                          templateName: CD change
+                        timeout: 10m
+                    - step:
+                        type: ServiceNowUpdate
+                        name: Add Deployment Details
+                        identifier: Add_Deployment_Details
+                        spec:
+                          useServiceNowTemplate: false
+                          connectorRef: account.ServiceNow
+                          ticketType: change_request
+                          ticketNumber: <+pipeline.stages.Deploy_QA.spec.execution.steps.Production_Approval_Request.steps.Create_ServiceNow_Ticket.ticket.ticketNumber>
+                          fields:
+                            - name: description
+                              value: Deploy <+service.name>
+                            - name: short_description
+                              value: Deploy <+service.name>
+                        timeout: 10m
+                  when:
+                    stageStatus: Success
+                    condition: <+pipeline.triggerType> != "SCHEDULER_CRON"
+            rollbackSteps: []
+          service:
+            useFromStage:
+              stage: Deploy_Dev
+          environment:
+            environmentRef: qa
+            deployToAll: false
+            gitOpsClusters:
+              - identifier: qacluster
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+    - stage:
+        name: Approval
+        identifier: Approval
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ServiceNowApproval
+                  name: ServiceNow Approval
+                  identifier: ServiceNow_Approval
+                  spec:
+                    connectorRef: account.ServiceNow
+                    ticketNumber: <+pipeline.stages.Deploy_QA.spec.execution.steps.Production_Approval_Request.steps.Create_ServiceNow_Ticket.ticket.ticketNumber>
+                    retryInterval: 30s
+                    ticketType: change_request
+                    approvalCriteria:
+                      type: KeyValues
+                      spec:
+                        matchAnyCondition: true
+                        conditions:
+                          - key: state
+                            operator: equals
+                            value: Implement
+                    rejectionCriteria:
+                      type: KeyValues
+                      spec:
+                        matchAnyCondition: true
+                        conditions: []
+                  timeout: 1d
+        tags: {}
+        when:
+          pipelineStatus: Success
+          condition: <+pipeline.triggerType> != "SCHEDULER_CRON"
+    - stage:
+        name: Deploy Prod
+        identifier: Deploy_Prod
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          gitOpsEnabled: true
+          execution:
+            steps:
+              - step:
+                  type: GitOpsUpdateReleaseRepo
+                  name: Update Release Repo
+                  identifier: updateReleaseRepo
+                  timeout: 10m
+                  spec:
+                    variables: []
+                    prTitle: "Harness: Updating Image Tag for Clusters in <+env.name>"
+              - step:
+                  type: MergePR
+                  name: Merge PR
+                  identifier: mergePR
+                  spec:
+                    deleteSourceBranch: false
+                    variables: []
+                  timeout: 10m
+              - step:
+                  type: GitOpsFetchLinkedApps
+                  name: Fetch Linked Apps
+                  identifier: fetchLinkedApps
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  type: GitOpsSync
+                  name: Sync App
+                  identifier: Sync_App
+                  spec:
+                    prune: true
+                    dryRun: false
+                    applyOnly: false
+                    forceApply: true
+                    applicationsList:
+                      - applicationName: prod-cluster-guestbook
+                        agentId: gitopsmgmt
+                    retryStrategy: {}
+                    retry: false
+                    syncOptions:
+                      skipSchemaValidation: false
+                      autoCreateNamespace: false
+                      pruneResourcesAtLast: false
+                      applyOutOfSyncOnly: false
+                      replaceResources: false
+                      prunePropagationPolicy: foreground
+                  timeout: 10m
+              - step:
+                  type: ShellScript
+                  name: Smoke Test
+                  identifier: Smoke_Test
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          echo "Failed Smoked Test"
+                          exit 1;
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+                  when:
+                    stageStatus: Success
+                    condition: <+pipeline.triggerType> != "SCHEDULER_CRON"
+            rollbackSteps:
+              - step:
+                  type: RevertPR
+                  name: RevertPR
+                  identifier: RevertPR
+                  spec:
+                    commitId: <+pipeline.stages.Deploy_Prod.spec.execution.steps.updateReleaseRepo.updateReleaseRepoOutcome.commitId>
+                  timeout: 10m
+              - step:
+                  type: MergePR
+                  name: MergePR
+                  identifier: MergePR
+                  spec:
+                    deleteSourceBranch: true
+                    variables: []
+                  timeout: 10m
+          service:
+            useFromStage:
+              stage: Deploy_Dev
+          environment:
+            environmentRef: prod
+            deployToAll: false
+            gitOpsClusters:
+              - identifier: prodcluster
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  allowStageExecutions: true

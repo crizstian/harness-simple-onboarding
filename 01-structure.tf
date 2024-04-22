@@ -1,6 +1,6 @@
 resource "harness_platform_organization" "this" {
-  identifier  = "Business_Unit_Demo"
-  name        = "Business Unit Demo"
+  identifier  = "Cristian_Demo"
+  name        = "Cristian Demo"
   description = "Organization provisioned by terraform"
   tags        = ["owner:cristian.ramirez@harness.io"]
 }
