@@ -2,7 +2,7 @@ resource "harness_platform_pipeline" "pipeline" {
   identifier = "pipeline_cicd"
   org_id     = var.org_id
   project_id = harness_platform_project.this.identifier
-  name       = "Full Deployment Kubernetes"
+  name       = "Pipeline Kubernetes Java"
 
   yaml = templatefile("./pipelines/full-deploymet.tftpl", {
     identifier  = "pipeline_cicd"
