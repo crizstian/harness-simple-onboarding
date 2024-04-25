@@ -7,8 +7,8 @@ pipeline:
   properties:
     ci:
       codebase:
-        connectorRef: ${github_connector}
-        repoName: ${github_repo}
+        connectorRef: account.cristian_github
+        repoName: harness-cie-lab
         build: <+input>
   stages:
     - stage:
@@ -21,7 +21,7 @@ pipeline:
           infrastructure:
             type: KubernetesDirect
             spec:
-              connectorRef: ${build_infrastructure}
+              connectorRef: account.cristian_kubernetes_cluster
               namespace: default
               automountServiceAccountToken: true
               nodeSelector: {}
@@ -33,8 +33,8 @@ pipeline:
                   name: RestoreCacheGCS
                   identifier: RestoreCacheGCS
                   spec:
-                    connectorRef: ${gcp_connector}
-                    bucket: ${gcs_bucket}
+                    connectorRef: account.cristian_GCP
+                    bucket: crizstian-terraform
                     key: <+pipeline.name>
                     archiveFormat: Tar
                     failIfKeyNotFound: true
@@ -51,7 +51,7 @@ pipeline:
                   name: pruebas unitarias
                   identifier: pruebas_unitarias
                   spec:
-                    connectorRef: ${docker_connector}
+                    connectorRef: account.cristian_docker
                     image: nikpap/mvn-openjdk-8:harness
                     language: Java
                     buildTool: Maven
@@ -74,7 +74,7 @@ pipeline:
                   name: build
                   identifier: build
                   spec:
-                    connectorRef: ${docker_connector}
+                    connectorRef: account.cristian_docker
                     image: nikpap/mvn-openjdk-8:harness
                     shell: Sh
                     command: |
@@ -146,7 +146,7 @@ pipeline:
                   name: BuildAndPushDocker
                   identifier: BuildAndPushDocker
                   spec:
-                    connectorRef: ${docker_connector}
+                    connectorRef: account.cristian_docker
                     repo: crizstian/payment-service-workshop
                     tags:
                       - <+pipeline.sequenceId>.0
@@ -159,8 +159,8 @@ pipeline:
                   name: SaveCacheGCS
                   identifier: SaveCacheGCS
                   spec:
-                    connectorRef: ${gcp_connector}
-                    bucket: ${gcs_bucket}
+                    connectorRef: account.cristian_GCP
+                    bucket: crizstian-terraform
                     key: <+pipeline.name>
                     sourcePaths:
                       - /root/.m2
@@ -215,7 +215,7 @@ pipeline:
                   name: Generacion Ticket
                   identifier: Generacion_Ticket
                   spec:
-                    connectorRef: ${jira_connector}
+                    connectorRef: account.Harness_JIRA
                     projectKey: SE
                     issueType: Story
                     fields:
@@ -260,6 +260,41 @@ pipeline:
                                     - AllErrors
                                   action:
                                     type: Ignore
+                        - step:
+                            type: Verify
+                            name: Verify
+                            identifier: Verify
+                            spec:
+                              isMultiServicesOrEnvs: false
+                              type: Canary
+                              monitoredService:
+                                type: Default
+                                spec: {}
+                              spec:
+                                sensitivity: MEDIUM
+                                duration: 15m
+                            timeout: 2h
+                            failureStrategies:
+                              - onFailure:
+                                  errors:
+                                    - Verification
+                                  action:
+                                    type: ManualIntervention
+                                    spec:
+                                      timeout: 2h
+                                      onTimeout:
+                                        action:
+                                          type: StageRollback
+                              - onFailure:
+                                  errors:
+                                    - Unknown
+                                  action:
+                                    type: ManualIntervention
+                                    spec:
+                                      timeout: 2h
+                                      onTimeout:
+                                        action:
+                                          type: Ignore
                     - step:
                         type: HarnessApproval
                         name: Aprovacion
@@ -286,7 +321,7 @@ pipeline:
                         name: Actualizacion de Ticket
                         identifier: Actualizacion_de_Ticket
                         spec:
-                          connectorRef: ${jira_connector}
+                          connectorRef: account.Harness_JIRA
                           issueKey: <+pipeline.stages.deploy.spec.execution.steps.Generacion_Ticket.issue.key>
                           fields:
                             - name: Comment
@@ -314,7 +349,7 @@ pipeline:
                   name: Cierre de Ticket
                   identifier: Cierre_de_Ticket
                   spec:
-                    connectorRef: ${jira_connector}
+                    connectorRef: account.Harness_JIRA
                     issueKey: <+pipeline.stages.deploy.spec.execution.steps.Generacion_Ticket.issue.key>
                     fields:
                       - name: Comment
