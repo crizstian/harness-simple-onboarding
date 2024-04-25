@@ -5,10 +5,10 @@
 #   tags        = ["owner:cristian.ramirez@harness.io"]
 # }
 
-# resource "harness_platform_project" "this" {
-#   identifier = "Project_Demo"
-#   name       = "Project Demo"
-#   org_id     = harness_platform_organization.this.identifier
-#   color      = "#0063F7"
-#   tags       = ["owner:cristian.ramirez@harness.io"]
-# }
+resource "harness_platform_project" "this" {
+  identifier = replace(var.service_name, "-", "_")
+  name       = var.service_name
+  org_id     = var.org_id
+  color      = "#0063F7"
+  tags       = ["owner:cristian.ramirez@harness.io"]
+}
