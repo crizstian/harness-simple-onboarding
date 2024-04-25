@@ -1,37 +1,34 @@
 pipeline:
-name: ${name}
-identifier: ${identifier}
-projectIdentifier: ${project_id}
-orgIdentifier: ${org_id}
-tags: {}
-template:
-  templateRef: nodejs_18_cicd
-  versionLabel: "2.0"
-  templateInputs:
-    properties:
-      ci:
-        codebase:
-          build: <+input>
-    stages:
-      - stage:
-          identifier: deploy
-          type: Deployment
-          spec:
-            service:
-              serviceInputs:
-                serviceDefinition:
-                  type: Kubernetes
-                  spec:
-                    manifests:
-                      - manifest:
-                          identifier: manifiesto
-                          type: K8sManifest
-                          spec:
-                            valuesPaths: <+input>
-    variables:
-      - name: seusername
-        type: String
-        value: <+input>
-      - name: dns
-        type: String
-        value: <+input>
+  name: ${name}
+  identifier: ${identifier}
+  projectIdentifier: ${project_id}
+  orgIdentifier: ${org_id}
+  tags: {}
+  template:
+    templateRef: account.nodejs_18_cicd
+    versionLabel: "2.0"
+    templateInputs:
+      properties:
+        ci:
+          codebase:
+            build: <+input>
+      stages:
+        - stage:
+            identifier: deploy
+            type: Deployment
+            spec:
+              service:
+                serviceRef: <+input>
+                serviceInputs: <+input>
+              environment:
+                environmentRef: <+input>
+                environmentInputs: <+input>
+                serviceOverrideInputs: <+input>
+                infrastructureDefinitions: <+input>
+      variables:
+        - name: seusername
+          type: String
+          value: <+input>
+        - name: dns
+          type: String
+          value: <+input>
