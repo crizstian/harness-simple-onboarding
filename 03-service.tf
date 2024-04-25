@@ -8,14 +8,14 @@ resource "harness_platform_service" "this" {
   description = "connector provisioned by terraform"
   tags        = ["owner:cristian.ramirez@harness.io"]
   org_id      = var.org_id
-  project_id  = harness_platform_organization.this.identifier
+  project_id  = harness_platform_project.this.identifier
 
   yaml = <<-EOT
 service:
   name: ${var.service_name}
   identifier: ${replace(var.service_name, "-", "_")}
   orgIdentifier: ${var.org_id}
-  projectIdentifier: ${harness_platform_organization.this.identifier}
+  projectIdentifier: ${harness_platform_project.this.identifier}
   serviceDefinition:
     spec:
       variables:
