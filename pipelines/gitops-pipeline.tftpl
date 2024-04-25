@@ -16,14 +16,12 @@ pipeline:
         type: CI
         spec:
           cloneCodebase: true
-          infrastructure:
-            type: KubernetesDirect
-            spec:
-              connectorRef: $build_infrastructure}
-              namespace: default
-              automountServiceAccountToken: true
-              nodeSelector: {}
-              os: Linux
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
           execution:
             steps:
               - step:
@@ -49,8 +47,8 @@ pipeline:
                         name: BuildAndPushDockerHub
                         identifier: BuildAndPushDockerRegistry
                         spec:
-                          connectorRef: account.cristian_docker
-                          repo: crizstian/guestbook
+                          connectorRef: account.DockerhubMansongPlatform
+                          repo: mansong/guestbook
                           tags:
                             - <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
                             - latest
@@ -70,8 +68,8 @@ pipeline:
                               source:
                                 type: image
                                 spec:
-                                  connector: account.cristian_docker
-                                  image: crizstian/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                                  connector: account.DockerHubMansongV1
+                                  image: mansong/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
                               attestation:
                                 type: cosign
                                 spec:
@@ -92,7 +90,7 @@ pipeline:
                               mode: orchestration
                               config: default
                               target:
-                                name: crizstian/guestbook
+                                name: mansong/guestbook
                                 type: container
                                 variant: <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
                               advanced:
@@ -111,7 +109,7 @@ pipeline:
                               mode: orchestration
                               config: default
                               target:
-                                name: crizstian/guestbook
+                                name: mansong/guestbook
                                 type: container
                                 variant: <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
                               advanced:
@@ -120,7 +118,7 @@ pipeline:
                               privileged: true
                               image:
                                 type: docker_v2
-                                name: crizstian/guestbook
+                                name: mansong/guestbook
                                 tag: latest
           caching:
             enabled: false
@@ -150,8 +148,8 @@ pipeline:
                     source:
                       type: image
                       spec:
-                        connector: account.cristian_docker
-                        image: crizstian/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
+                        connector: account.DockerHubMansongV1
+                        image: mansong/guestbook:<+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>
                     verifyAttestation:
                       type: cosign
                       spec:
@@ -242,7 +240,7 @@ pipeline:
                         expectedResilienceScore: 50
             rollbackSteps: []
           service:
-            serviceRef: $service_id}
+            serviceRef: GuestBook_UI
             serviceInputs:
               serviceDefinition:
                 type: Kubernetes

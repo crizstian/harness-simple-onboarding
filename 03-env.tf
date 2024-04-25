@@ -1,23 +1,23 @@
-resource "harness_platform_environment" "this" {
-  identifier  = "DEV"
-  name        = "DEV"
-  type        = "PreProduction"
-  description = "env provisioned by terraform"
-  tags        = ["owner:cristian.ramirez@harness.io"]
-  org_id      = harness_platform_organization.this.identifier
-  project_id  = harness_platform_project.this.identifier
+# resource "harness_platform_environment" "this" {
+#   identifier  = "DEV"
+#   name        = "DEV"
+#   type        = "PreProduction"
+#   description = "env provisioned by terraform"
+#   tags        = ["owner:cristian.ramirez@harness.io"]
+#   org_id      = var.org_id
+#   project_id  = var.project_id
 
-  yaml = <<-EOT
-environment:
-  name: DEV
-  identifier: DEV
-  tags: {}
-  type: PreProduction
-  orgIdentifier: ${harness_platform_organization.this.identifier}
-  projectIdentifier: ${harness_platform_project.this.identifier}
-  variables: []
-EOT
-}
+#   yaml = <<-EOT
+# environment:
+#   name: DEV
+#   identifier: DEV
+#   tags: {}
+#   type: PreProduction
+#   orgIdentifier: ${var.org_id}
+#   projectIdentifier: ${var.project_id}
+#   variables: []
+# EOT
+# }
 
 # resource "harness_platform_infrastructure" "this" {
 #   identifier      = "gkeecommdev"

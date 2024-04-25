@@ -1,17 +1,21 @@
+variable "service_name" {}
+variable "org_id" {}
+variable "project_id" {}
+
 resource "harness_platform_service" "this" {
-  identifier  = "GuestBook_UI"
-  name        = "GuestBook - UI"
+  identifier  = replace(var.service_name, "-", "_")
+  name        = var.service_name
   description = "connector provisioned by terraform"
   tags        = ["owner:cristian.ramirez@harness.io"]
-  org_id      = harness_platform_organization.this.identifier
-  project_id  = harness_platform_project.this.identifier
+  org_id      = var.org_id
+  project_id  = var.project_id
 
   yaml = <<-EOT
 service:
-  name: GuestBook - UI
-  identifier: GuestBook_UI
-  orgIdentifier: ${harness_platform_organization.this.identifier}
-  projectIdentifier: ${harness_platform_project.this.identifier}
+  name: ${var.service_name}
+  identifier: ${replace(var.service_name, "-", "_")}
+  orgIdentifier: ${var.org_id}
+  projectIdentifier: ${var.project_id}
   serviceDefinition:
     spec:
       variables:
@@ -73,85 +77,3 @@ service:
 
     EOT
 }
-
-# resource "harness_platform_monitored_service" "this" {
-#   org_id     = harness_platform_organization.this.identifier
-#   project_id = harness_platform_project.this.identifier
-#   identifier = harness_platform_service.this.identifier
-#   request {
-#     name            = "payment-service"
-#     type            = "Application"
-#     description     = "monitor provisioned by terraform"
-#     service_ref     = harness_platform_service.this.identifier
-#     environment_ref = harness_platform_environment.this.identifier
-#     tags            = ["owner:cristian.ramirez@harness.io"]
-#     health_sources {
-#       name       = "prometheus metrics verify step"
-#       identifier = "prometheus_metrics"
-#       type       = "Prometheus"
-#       spec = jsonencode({
-#         connectorRef = harness_platform_connector_prometheus.this.identifier
-#         feature      = "apm"
-#         metricDefinitions = [
-#           {
-#             identifier = "prometheus_metric"
-#             metricName = "Prometheus Metric"
-#             riskProfile = {
-#               category     = "Infrastructure"
-#               metricType   = "INFRA"
-#               riskCategory = "Infrastructure"
-#               thresholdTypes = [
-#                 "ACT_WHEN_HIGHER"
-#               ]
-#             }
-#             analysis = {
-#               liveMonitoring = {
-#                 enabled = false
-#               }
-#               deploymentVerification = {
-#                 enabled                  = true
-#                 serviceInstanceFieldName = "pod"
-#               }
-#               riskProfile = {
-#                 category     = "Infrastructure"
-#                 metricType   = "INFRA"
-#                 riskCategory = "Infrastructure"
-#                 thresholdTypes = [
-#                   "ACT_WHEN_HIGHER"
-#                 ]
-#               }
-#             }
-#             sli = {
-#               enabled = true
-#             }
-#             query                    = "avg(node_cpu_seconds_total{namespace=\"default\"namespace=\"default\"})"
-#             groupName                = "memory"
-#             serviceInstanceFieldName = "pod"
-#             prometheusMetric         = "node_cpu_seconds_total"
-#             serviceFilter = [
-#               {
-#                 labelName  = "namespace"
-#                 labelValue = "default"
-#               }
-#             ]
-#             envFilter = [
-#               {
-#                 labelName  = "namespace"
-#                 labelValue = "default"
-#               }
-#             ]
-#             aggregation   = "avg"
-#             isManualQuery = false
-#           }
-#         ]
-#         # Below section is for adding your own custom thresholds
-#         metricPacks = [
-#           {
-#             identifier       = "Custom"
-#             metricThresholds = []
-#           }
-#         ]
-#       })
-#     }
-#   }
-# }
