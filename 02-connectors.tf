@@ -1,13 +1,13 @@
-resource "harness_platform_connector_kubernetes" "build" {
-  identifier  = "cristian_kubernetes_cluster"
-  name        = "cristian_kubernetes_cluster"
-  description = "connector provisioned by terraform"
-  tags        = ["owner:cristian.ramirez@harness.io"]
+# resource "harness_platform_connector_kubernetes" "build" {
+#   identifier  = "cristian_kubernetes_cluster"
+#   name        = "cristian_kubernetes_cluster"
+#   description = "connector provisioned by terraform"
+#   tags        = ["owner:cristian.ramirez@harness.io"]
 
-  inherit_from_delegate {
-    delegate_selectors = ["cristian-cencosud-itx-delegate"]
-  }
-}
+#   inherit_from_delegate {
+#     delegate_selectors = ["ci-cd-gke-cluster"]
+#   }
+# }
 
 # resource "harness_platform_connector_kubernetes" "dev" {
 #   identifier  = "cristian_k8s_dev_cluster"
@@ -19,7 +19,7 @@ resource "harness_platform_connector_kubernetes" "build" {
 #     master_url                = "https://kubernetes.example.com"
 #     service_account_token_ref = "account.cristian_eks_dev_cluster_token"
 #   }
-#   delegate_selectors = ["cristian-cencosud-itx-delegate"]
+#   delegate_selectors = ["ci-cd-gke-cluster"]
 # }
 
 resource "harness_platform_connector_github" "this" {
@@ -31,7 +31,7 @@ resource "harness_platform_connector_github" "this" {
   url                = "https://github.com/crizstian"
   connection_type    = "Account"
   validation_repo    = "IDP-Test"
-  delegate_selectors = ["cristian-cencosud-itx-delegate"]
+  delegate_selectors = ["ci-cd-gke-cluster"]
   credentials {
     http {
       username  = "crizstian"
@@ -47,7 +47,7 @@ resource "harness_platform_connector_github" "this" {
 #   tags        = ["owner:cristian.ramirez@harness.io"]
 
 #   inherit_from_delegate {
-#     delegate_selectors = ["cristian-cencosud-itx-delegate"]
+#     delegate_selectors = ["ci-cd-gke-cluster"]
 #   }
 # }
 
@@ -59,7 +59,7 @@ resource "harness_platform_connector_docker" "this" {
 
   type               = "DockerHub"
   url                = "https://hub.docker.com"
-  delegate_selectors = ["cristian-cencosud-itx-delegate"]
+  delegate_selectors = ["ci-cd-gke-cluster"]
 
   credentials {
     username     = "crizstian"
@@ -74,7 +74,7 @@ resource "harness_platform_connector_docker" "this" {
 #   tags        = ["owner:cristian.ramirez@harness.io"]
 
 #   url                = "https://harness.atlassian.net"
-#   delegate_selectors = ["cristian-cencosud-itx-delegate"]
+#   delegate_selectors = ["ci-cd-gke-cluster"]
 #   auth {
 #     auth_type = "UsernamePassword"
 #     username_password {
@@ -91,5 +91,5 @@ resource "harness_platform_connector_docker" "this" {
 #   tags        = ["owner:cristian.ramirez@harness.io"]
 
 #   url                = "http://prometheus.selatam.harness-demo.site/"
-#   delegate_selectors = ["cristian-cencosud-itx-delegate"]
+#   delegate_selectors = ["ci-cd-gke-cluster"]
 # }

@@ -1,6 +1,6 @@
 resource "harness_platform_service" "this" {
-  identifier  = "GuestBook_UI"
-  name        = "GuestBook - UI"
+  identifier  = "helm_ms_sgi_login_service"
+  name        = "helm_ms_sgi_login_service"
   description = "connector provisioned by terraform"
   tags        = ["owner:cristian.ramirez@harness.io"]
   org_id      = harness_platform_organization.this.identifier
@@ -8,70 +8,57 @@ resource "harness_platform_service" "this" {
 
   yaml = <<-EOT
 service:
-  name: GuestBook - UI
-  identifier: GuestBook_UI
+  name: helm_ms_sgi_login_service
+  identifier: helm_ms_sgi_login_service
   orgIdentifier: ${harness_platform_organization.this.identifier}
   projectIdentifier: ${harness_platform_project.this.identifier}
   serviceDefinition:
     spec:
-      variables:
-        - name: harness_service
-          type: String
-          description: ""
-          required: false
-          value: "<+service.identifier>"
-        - name: environment
-          type: String
-          description: ""
-          required: false
-          value: " <+env.name>"
-        - name: image_tag
-          type: String
-          description: ""
-          required: false
-          value: " <+pipeline.stages.Build_Test_Push.spec.execution.steps.Create_Tag.output.outputVariables.TAG>"
-      artifacts:
-        primary:
-          primaryArtifactRef: <+input>
-          sources:
-            - spec:
-                connectorRef: account.cristian_docker
-                imagePath: crizstian/guestbook
-                tag: latest
-                digest: ""
-              identifier: guestbook
-              type: DockerRegistry
       manifests:
         - manifest:
-            identifier: config
-            type: ReleaseRepo
+            identifier: cicd_gar
+            type: HelmChart
             spec:
               store:
-                type: Github
+                type: GitLab
                 spec:
-                  connectorRef: account.cristian_github
+                  connectorRef: account.tecnomedia
                   gitFetchType: Branch
-                  paths:
-                    - cluster-config/<+cluster.name>/config.json
-                  branch: main
-                  repoName: guestbook-delivery
-        - manifest:
-            identifier: appset
-            type: DeploymentRepo
-            spec:
-              store:
-                type: Github
-                spec:
-                  connectorRef: account.cristian_github
-                  gitFetchType: Branch
-                  paths:
-                    - appset/applicationset.yaml
-                  branch: main
-                  repoName: guestbook-delivery
-    type: Kubernetes
-  gitOpsEnabled: true
-
-    EOT
+                  folderPath: /ms-sgi-login
+                  repoName: tcmd/helm_charts
+                  branch: develop
+              subChartPath: ""
+              valuesPaths: <+input>
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              helmVersion: V3
+              fetchHelmChartMetadata: false
+              commandFlags:
+                - commandType: Install
+                  flag: "-n sgi"
+      artifacts:
+        primary:
+          primaryArtifactRef: cicd_gar
+          sources:
+            - identifier: cicd_gar
+              spec:
+                connectorRef: account.prosagcp
+                repositoryType: docker
+                project: ci-cd-prj-tools-01
+                region: us-central1
+                repositoryName: sandbox
+                package: ms-sgi-login
+                version: <+pipeline.stages.Building.spec.execution.steps.Build_Push_Container_Image.artifact_Build_Push_Container_Image.stepArtifacts.publishedImageArtifacts[0].tag>
+                digest: ""
+              type: GoogleArtifactRegistry
+      variables:
+        - name: releaseChart
+          type: String
+          description: ""
+          required: false
+          value: ms-sgi-login
+    type: NativeHelm
+EOT
 }
 
 # resource "harness_platform_monitored_service" "this" {

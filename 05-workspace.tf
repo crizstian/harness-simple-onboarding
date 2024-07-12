@@ -6,8 +6,8 @@
 #       repository_branch       = "refactor"
 #       repository_path         = "provision"
 #       cost_estimation_enabled = true
-#       provider_connector      = "account.cristian_gcp_gcp_connector_MQTH"
-#       repository_connector    = "account.cristian_github_github_connector_MQTH"
+#       provider_connector      = "account.prosagcp"
+#       repository_connector    = "account.${harness_platform_connector_github.this.identifier}"
 
 #       terraform_variable = {
 #         "gcp_machine_type" = {
