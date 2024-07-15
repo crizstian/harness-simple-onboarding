@@ -29,24 +29,6 @@ pipeline:
           execution:
             steps:
               - step:
-                  type: RestoreCacheGCS
-                  name: RestoreCacheGCS
-                  identifier: RestoreCacheGCS
-                  spec:
-                    connectorRef: ${gcp_connector}
-                    bucket: ${gcs_bucket}
-                    key: <+pipeline.name>
-                    archiveFormat: Tar
-                    failIfKeyNotFound: true
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: Ignore
-                  when:
-                    stageStatus: Success
-              - step:
                   type: RunTests
                   name: pruebas unitarias
                   identifier: pruebas_unitarias
@@ -154,25 +136,6 @@ pipeline:
                       limits:
                         memory: 1Gi
                         cpu: "1"
-              - step:
-                  type: SaveCacheGCS
-                  name: SaveCacheGCS
-                  identifier: SaveCacheGCS
-                  spec:
-                    connectorRef: ${gcp_connector}
-                    bucket: ${gcs_bucket}
-                    key: <+pipeline.name>
-                    sourcePaths:
-                      - /root/.m2
-                    archiveFormat: Tar
-                  when:
-                    stageStatus: Success
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: Ignore
           caching:
             enabled: false
             paths: []
