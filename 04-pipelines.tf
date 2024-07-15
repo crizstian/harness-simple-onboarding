@@ -14,8 +14,5 @@ resource "harness_platform_pipeline" "pipeline" {
     build_infrastructure = "account.cicdgkecluster"
     docker_connector     = "account.${harness_platform_connector_docker.this.identifier}"
     service_id           = harness_platform_service.this.identifier
-    gcs_bucket           = "test"
-    gcp_connector        = "account.prosagcp"
-    jira_connector       = "test"
   })
 }
